@@ -1249,12 +1249,23 @@ inheritance_status property_types_compatible(
 static void emit_incompatible_property_error(
 		const zend_property_info *child, const zend_property_info *parent) {
 	zend_string *type_str = zend_type_to_string_resolved(parent->type, parent->ce);
-	zend_error_noreturn(E_COMPILE_ERROR,
-		"Type of %s::$%s must be %s (as in class %s)",
-		ZSTR_VAL(child->ce->name),
-		zend_get_unmangled_property_name(child->name),
-		ZSTR_VAL(type_str),
-		ZSTR_VAL(parent->ce->name));
+
+	//TODO swap class for interface dynamically?
+	if(child->ce->ce_flags & ZEND_ACC_INTERFACE){
+		zend_error_noreturn(E_COMPILE_ERROR,
+    		"Type of %s::$%s must be %s (as in interface %s)",
+    		ZSTR_VAL(child->ce->name),
+    		zend_get_unmangled_property_name(child->name),
+    		ZSTR_VAL(type_str),
+    		ZSTR_VAL(parent->ce->name));
+	} else {
+		zend_error_noreturn(E_COMPILE_ERROR,
+    		"Type of %s::$%s must be %s (as in class %s)",
+    		ZSTR_VAL(child->ce->name),
+    		zend_get_unmangled_property_name(child->name),
+    		ZSTR_VAL(type_str),
+    		ZSTR_VAL(parent->ce->name));
+	}
 }
 
 static void do_inherit_property(zend_property_info *parent_info, zend_string *key, zend_class_entry *ce) /* {{{ */
@@ -1262,6 +1273,67 @@ static void do_inherit_property(zend_property_info *parent_info, zend_string *ke
 	zval *child = zend_hash_find_known_hash(&ce->properties_info, key);
 	zend_property_info *child_info;
 
+	if (UNEXPECTED(child)) {
+		child_info = Z_PTR_P(child);
+		if (parent_info->flags & (ZEND_ACC_PRIVATE|ZEND_ACC_CHANGED)) {
+			child_info->flags |= ZEND_ACC_CHANGED;
+		}
+		if (!(parent_info->flags & ZEND_ACC_PRIVATE)) {
+			if (UNEXPECTED((parent_info->flags & ZEND_ACC_STATIC) != (child_info->flags & ZEND_ACC_STATIC))) {
+				zend_error_noreturn(E_COMPILE_ERROR, "Cannot redeclare %s%s::$%s as %s%s::$%s",
+					(parent_info->flags & ZEND_ACC_STATIC) ? "static " : "non static ", ZSTR_VAL(parent_info->ce->name), ZSTR_VAL(key),
+					(child_info->flags & ZEND_ACC_STATIC) ? "static " : "non static ", ZSTR_VAL(ce->name), ZSTR_VAL(key));
+			}
+			if (UNEXPECTED((child_info->flags & ZEND_ACC_READONLY) != (parent_info->flags & ZEND_ACC_READONLY))) {
+				zend_error_noreturn(E_COMPILE_ERROR,
+					"Cannot redeclare %s property %s::$%s as %s %s::$%s",
+					parent_info->flags & ZEND_ACC_READONLY ? "readonly" : "non-readonly",
+					ZSTR_VAL(parent_info->ce->name), ZSTR_VAL(key),
+					child_info->flags & ZEND_ACC_READONLY ? "readonly" : "non-readonly",
+					ZSTR_VAL(ce->name), ZSTR_VAL(key));
+			}
+
+			if (UNEXPECTED((child_info->flags & ZEND_ACC_PPP_MASK) > (parent_info->flags & ZEND_ACC_PPP_MASK))) {
+				zend_error_noreturn(E_COMPILE_ERROR, "Access level to %s::$%s must be %s (as in class %s)%s", ZSTR_VAL(ce->name), ZSTR_VAL(key), zend_visibility_string(parent_info->flags), ZSTR_VAL(parent_info->ce->name), (parent_info->flags&ZEND_ACC_PUBLIC) ? "" : " or weaker");
+			} else if ((child_info->flags & ZEND_ACC_STATIC) == 0) {
+				int parent_num = OBJ_PROP_TO_NUM(parent_info->offset);
+				int child_num = OBJ_PROP_TO_NUM(child_info->offset);
+
+				/* Don't keep default properties in GC (they may be freed by opcache) */
+				zval_ptr_dtor_nogc(&(ce->default_properties_table[parent_num]));
+				ce->default_properties_table[parent_num] = ce->default_properties_table[child_num];
+				ZVAL_UNDEF(&ce->default_properties_table[child_num]);
+				child_info->offset = parent_info->offset;
+			}
+
+			if (UNEXPECTED(ZEND_TYPE_IS_SET(parent_info->type))) {
+				inheritance_status status = property_types_compatible(parent_info, child_info);
+				if (status == INHERITANCE_ERROR) {
+					emit_incompatible_property_error(child_info, parent_info);
+				}
+				if (status == INHERITANCE_UNRESOLVED) {
+					add_property_compatibility_obligation(ce, child_info, parent_info);
+				}
+			} else if (UNEXPECTED(ZEND_TYPE_IS_SET(child_info->type) && !ZEND_TYPE_IS_SET(parent_info->type))) {
+				zend_error_noreturn(E_COMPILE_ERROR,
+						"Type of %s::$%s must not be defined (as in class %s)",
+						ZSTR_VAL(ce->name),
+						ZSTR_VAL(key),
+						ZSTR_VAL(parent_info->ce->name));
+			}
+		}
+	} else {
+		_zend_hash_append_ptr(&ce->properties_info, key, parent_info);
+	}
+}
+/* }}} */
+
+static void do_inherit_iface_property(zend_string *key, zend_property_info *parent_info, zend_class_entry *ce, zend_class_entry *iface) /* {{{ */
+{
+	zval *child = zend_hash_find_known_hash(&ce->properties_info, key);
+	zend_property_info *child_info;
+
+	//TODO this needs cleaning up, we only need to check children/properties that are public
 	if (UNEXPECTED(child)) {
 		child_info = Z_PTR_P(child);
 		if (parent_info->flags & (ZEND_ACC_PRIVATE|ZEND_ACC_CHANGED)) {
@@ -1770,6 +1842,10 @@ static void do_interface_implementation(zend_class_entry *ce, zend_class_entry *
 
 	ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&iface->constants_table, key, c) {
 		do_inherit_iface_constant(key, c, ce, iface);
+	} ZEND_HASH_FOREACH_END();
+
+	ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&iface->properties_info, key, c) {
+		do_inherit_iface_property(key, c, ce, iface);
 	} ZEND_HASH_FOREACH_END();
 
 	ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&iface->function_table, key, func) {

@@ -7614,10 +7614,6 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 	zend_class_entry *ce = CG(active_class_entry);
 	uint32_t i, children = list->children;
 
-	if (ce->ce_flags & ZEND_ACC_INTERFACE) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Interfaces may not include properties");
-	}
-
 	if (ce->ce_flags & ZEND_ACC_ENUM) {
 		zend_error_noreturn(E_COMPILE_ERROR, "Enum %s cannot include properties", ZSTR_VAL(ce->name));
 	}
@@ -7632,6 +7628,15 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 		zend_string *doc_comment = NULL;
 		zval value_zv;
 		zend_type type = ZEND_TYPE_INIT_NONE(0);
+
+			if (ce->ce_flags & ZEND_ACC_INTERFACE) {
+        		if (!(flags & ZEND_ACC_PUBLIC)) {
+        			zend_error_noreturn(E_COMPILE_ERROR, "Access type for interface property "
+        				"%s::$%s must be public", ZSTR_VAL(ce->name), ZSTR_VAL(name));
+        		}
+
+        		//TODO probably need to end the execution here for interfaces?
+        	}
 
 		if (type_ast) {
 			type = zend_compile_typename(type_ast, /* force_allow_null */ 0);
