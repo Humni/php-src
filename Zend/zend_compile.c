@@ -7629,15 +7629,6 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 		zval value_zv;
 		zend_type type = ZEND_TYPE_INIT_NONE(0);
 
-			if (ce->ce_flags & ZEND_ACC_INTERFACE) {
-        		if (!(flags & ZEND_ACC_PUBLIC)) {
-        			zend_error_noreturn(E_COMPILE_ERROR, "Access type for interface property "
-        				"%s::$%s must be public", ZSTR_VAL(ce->name), ZSTR_VAL(name));
-        		}
-
-        		//TODO probably need to end the execution here for interfaces?
-        	}
-
 		if (type_ast) {
 			type = zend_compile_typename(type_ast, /* force_allow_null */ 0);
 
@@ -7652,6 +7643,22 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 		/* Doc comment has been appended as last element in ZEND_AST_PROP_ELEM ast */
 		if (doc_comment_ast) {
 			doc_comment = zend_string_copy(zend_ast_get_str(doc_comment_ast));
+		}
+
+		if (ce->ce_flags & ZEND_ACC_INTERFACE) {
+			if (!(flags & ZEND_ACC_PUBLIC)) {
+				zend_error_noreturn(E_COMPILE_ERROR, "Access type for interface property "
+					"%s::$%s must be public", ZSTR_VAL(ce->name), ZSTR_VAL(name));
+			}
+
+			//TODO probably need to enforce property declaration around here
+
+//			info = zend_declare_typed_property(ce, name, &value_zv, flags, doc_comment, type);
+//
+//			if (attr_ast) {
+//				zend_compile_attributes(&info->attributes, attr_ast, 0, ZEND_ATTRIBUTE_TARGET_PROPERTY, 0);
+//			}
+			return;
 		}
 
 		if (zend_hash_exists(&ce->properties_info, name)) {
