@@ -1,5 +1,5 @@
 --TEST--
-Ensure an interface cannot have have readonly properties
+Ensure an interface can have have readonly properties
 --FILE--
 <?php
 interface I {

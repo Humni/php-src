@@ -1,5 +1,5 @@
 --TEST--
-Ensure an interface cannot have nullable properties
+Ensure an interface can have nullable properties
 --FILE--
 <?php
 interface A {
