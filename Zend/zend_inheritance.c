@@ -1250,7 +1250,6 @@ static void emit_incompatible_property_error(
 		const zend_property_info *child, const zend_property_info *parent) {
 	zend_string *type_str = zend_type_to_string_resolved(parent->type, parent->ce);
 
-	//TODO swap class for interface dynamically?
 	if(child->ce->ce_flags & ZEND_ACC_INTERFACE){
 		zend_error_noreturn(E_COMPILE_ERROR,
     		"Type of %s::$%s must be %s (as in interface %s)",
