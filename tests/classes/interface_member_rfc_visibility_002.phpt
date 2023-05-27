@@ -3,7 +3,7 @@ Ensure that default visibility of interface properties is public
 --FILE--
 <?php
 interface A {
-    $foo;
+    var $foo;
 }
 
 echo "Done\n";

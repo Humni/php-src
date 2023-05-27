@@ -6,7 +6,7 @@ interface I1 {
     public int $foo;
 }
 
-class A {
+class A implements I1 {
     public mixed $foo;
 }
 

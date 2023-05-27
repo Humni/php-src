@@ -10,4 +10,4 @@ class A implements I {
 }
 ?>
 --EXPECTF--
-Fatal error: Property A::$foo cannot be static as it is declared in interface I in %s on line 6
+Fatal error: Class property A::$foo cannot be static as it is declared in interface I in %s on line 5

@@ -1335,11 +1335,26 @@ static void do_inherit_iface_property(zend_string *key, zend_property_info *pare
 
 	if ((class_property_info = zend_hash_find_ptr(&ce->properties_info, parent_info->name)) != NULL) {
 
-        if (property_types_compatible(parent_info, class_property_info) == INHERITANCE_ERROR) {
+        if (ZEND_TYPE_PURE_MASK(parent_info->type) != ZEND_TYPE_PURE_MASK(class_property_info->type)
+            || ZEND_TYPE_NAME(parent_info->type) != ZEND_TYPE_NAME(class_property_info->type)) {
             zend_error(E_COMPILE_ERROR, "Type of %s::$%s does not match the type declared in interface %s",
                        ZSTR_VAL(ce->name),
                        ZSTR_VAL(key),
                        ZSTR_VAL(iface->name));
+        }
+
+        if (!(class_property_info->flags & ZEND_ACC_PUBLIC)) {
+            zend_error_noreturn(E_COMPILE_ERROR, "Class property %s::$%s must be public as in interface %s",
+                                ZSTR_VAL(ce->name),
+                                ZSTR_VAL(key),
+                                ZSTR_VAL(iface->name));
+        }
+
+        if (class_property_info->flags & ZEND_ACC_STATIC) {
+            zend_error_noreturn(E_COMPILE_ERROR, "Class property %s::$%s cannot be static as it is declared in interface %s",
+                                ZSTR_VAL(ce->name),
+                                ZSTR_VAL(key),
+                                ZSTR_VAL(iface->name));
         }
 	} else {
         if(!(ce->ce_flags & ZEND_ACC_INTERFACE)) {
@@ -1349,13 +1364,6 @@ static void do_inherit_iface_property(zend_string *key, zend_property_info *pare
                                 ZSTR_VAL(key));
         }
     }
-
-	if (!(class_property_info->flags & ZEND_ACC_PUBLIC)) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Class property %s::$%s must be public as in interface %s",
-			ZSTR_VAL(ce->name),
-			ZSTR_VAL(key),
-			ZSTR_VAL(iface->name));
-	}
 }
 /* }}} */
 

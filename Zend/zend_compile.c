@@ -7646,6 +7646,11 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 		}
 
 		if (ce->ce_flags & ZEND_ACC_INTERFACE) {
+            if (flags & ZEND_ACC_STATIC) {
+                zend_error_noreturn(E_COMPILE_ERROR, "Interface property %s::$%s cannot be static",
+                                    ZSTR_VAL(ce->name), ZSTR_VAL(name));
+            }
+
 			if (!(flags & ZEND_ACC_PUBLIC)) {
 				zend_error_noreturn(E_COMPILE_ERROR, "Access type for interface property "
 					"%s::$%s must be public", ZSTR_VAL(ce->name), ZSTR_VAL(name));
