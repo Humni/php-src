@@ -1333,26 +1333,28 @@ static void do_inherit_iface_property(zend_string *key, zend_property_info *pare
 	zval *child = zend_hash_find_known_hash(&ce->properties_info, key);
 	zend_property_info *class_property_info;
 
-	//TODO validate that these work
-	fprintf(stderr, "Debug: Checking property %s::%s\n", ZSTR_VAL(iface->name), ZSTR_VAL(parent_info->name));
-
 	if ((class_property_info = zend_hash_find_ptr(&ce->properties_info, parent_info->name)) != NULL) {
-		zend_error(E_COMPILE_ERROR, "Type of property %s::%s does not match the type declared in interface %s",
-                    ZSTR_VAL(ce->name),
-                    ZSTR_VAL(parent_info->name),
-                    ZSTR_VAL(iface->name));
-	}
+
+        if (property_types_compatible(parent_info, class_property_info) == INHERITANCE_ERROR) {
+            zend_error(E_COMPILE_ERROR, "Type of %s::$%s does not match the type declared in interface %s",
+                       ZSTR_VAL(ce->name),
+                       ZSTR_VAL(key),
+                       ZSTR_VAL(iface->name));
+        }
+	} else {
+        if(!(ce->ce_flags & ZEND_ACC_INTERFACE)) {
+            zend_error_noreturn(E_COMPILE_ERROR, "Class %s must implement interface property %s::$%s",
+                                ZSTR_VAL(ce->name),
+                                ZSTR_VAL(iface->name),
+                                ZSTR_VAL(key));
+        }
+    }
 
 	if (!(class_property_info->flags & ZEND_ACC_PUBLIC)) {
-		zend_error_noreturn(E_COMPILE_ERROR, "Class property %s::%s must be public as in interface %s",
+		zend_error_noreturn(E_COMPILE_ERROR, "Class property %s::$%s must be public as in interface %s",
 			ZSTR_VAL(ce->name),
-			ZSTR_VAL(parent_info->name),
+			ZSTR_VAL(key),
 			ZSTR_VAL(iface->name));
-	} else {
-		zend_error_noreturn(E_COMPILE_ERROR, "Class %s must implement interface property %s::%s",
-			ZSTR_VAL(ce->name),
-			ZSTR_VAL(iface->name),
-			ZSTR_VAL(parent_info->name));
 	}
 }
 /* }}} */

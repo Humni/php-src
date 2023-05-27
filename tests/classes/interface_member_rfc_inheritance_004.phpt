@@ -12,5 +12,5 @@ class A implements I1 {
 
 echo "Done\n";
 ?>
---EXPECT--
-Fatal error: Property I1::$foo of type int must be declared in class A in %s on line 6
+--EXPECTF--
+Fatal error: Class A must implement interface property I1::$foo in %s on line 6

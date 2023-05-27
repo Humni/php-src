@@ -7651,13 +7651,12 @@ static void zend_compile_prop_decl(zend_ast *ast, zend_ast *type_ast, uint32_t f
 					"%s::$%s must be public", ZSTR_VAL(ce->name), ZSTR_VAL(name));
 			}
 
-			//TODO probably need to enforce property declaration around here
+            ZVAL_UNDEF(&value_zv);
+			info = zend_declare_typed_property(ce, name, &value_zv, flags, doc_comment, type);
 
-//			info = zend_declare_typed_property(ce, name, &value_zv, flags, doc_comment, type);
-//
-//			if (attr_ast) {
-//				zend_compile_attributes(&info->attributes, attr_ast, 0, ZEND_ATTRIBUTE_TARGET_PROPERTY, 0);
-//			}
+			if (attr_ast) {
+				zend_compile_attributes(&info->attributes, attr_ast, 0, ZEND_ATTRIBUTE_TARGET_PROPERTY, 0);
+			}
 			return;
 		}
 
