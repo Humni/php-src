@@ -294,7 +294,18 @@ static ZEND_NAMED_FUNCTION(zend_closure_call_magic) /* {{{ */ {
 	fci.params = params;
 	fci.param_count = 2;
 	ZVAL_STR(&fci.params[0], EX(func)->common.function_name);
-	if (ZEND_NUM_ARGS()) {
+	if (EX_CALL_INFO() & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS) {
+		zend_string *name;
+		zval *named_param_zval;
+		array_init_size(&fci.params[1], ZEND_NUM_ARGS() + zend_hash_num_elements(EX(extra_named_params)));
+		/* Avoid conversion from packed to mixed later. */
+		zend_hash_real_init_mixed(Z_ARRVAL(fci.params[1]));
+		zend_copy_parameters_array(ZEND_NUM_ARGS(), &fci.params[1]);
+		ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(EX(extra_named_params), name, named_param_zval) {
+			Z_TRY_ADDREF_P(named_param_zval);
+			zend_hash_add_new(Z_ARRVAL(fci.params[1]), name, named_param_zval);
+		} ZEND_HASH_FOREACH_END();
+	} else if (ZEND_NUM_ARGS()) {
 		array_init_size(&fci.params[1], ZEND_NUM_ARGS());
 		zend_copy_parameters_array(ZEND_NUM_ARGS(), &fci.params[1]);
 	} else {
@@ -324,7 +335,7 @@ static zend_result zend_create_closure_from_callable(zval *return_value, zval *c
 	if (mptr->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) {
 		/* For Closure::fromCallable([$closure, "__invoke"]) return $closure. */
 		if (fcc.object && fcc.object->ce == zend_ce_closure
-				&& zend_string_equals_literal(mptr->common.function_name, "__invoke")) {
+				&& zend_string_equals(mptr->common.function_name, ZSTR_KNOWN(ZEND_STR_MAGIC_INVOKE))) {
 			RETVAL_OBJ_COPY(fcc.object);
 			zend_free_trampoline(mptr);
 			return SUCCESS;
@@ -834,14 +845,14 @@ void zend_closure_from_frame(zval *return_value, zend_execute_data *call) { /* {
 	if (mptr->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) {
 		if ((ZEND_CALL_INFO(call) & ZEND_CALL_HAS_THIS) &&
 			(Z_OBJCE(call->This) == zend_ce_closure)
-			&& zend_string_equals_literal(mptr->common.function_name, "__invoke")) {
+			&& zend_string_equals(mptr->common.function_name, ZSTR_KNOWN(ZEND_STR_MAGIC_INVOKE))) {
 	        zend_free_trampoline(mptr);
 	        RETURN_OBJ_COPY(Z_OBJ(call->This));
 	    }
 
 		memset(&trampoline, 0, sizeof(zend_internal_function));
 		trampoline.type = ZEND_INTERNAL_FUNCTION;
-		trampoline.fn_flags = mptr->common.fn_flags & ZEND_ACC_STATIC;
+		trampoline.fn_flags = mptr->common.fn_flags & (ZEND_ACC_STATIC | ZEND_ACC_VARIADIC);
 		trampoline.handler = zend_closure_call_magic;
 		trampoline.function_name = mptr->common.function_name;
 		trampoline.scope = mptr->common.scope;

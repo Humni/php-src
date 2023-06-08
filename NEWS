@@ -1,6 +1,12 @@
 PHP                                                                        NEWS
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-?? ??? ????, PHP 8.3.0alpha1
+?? ??? ????, PHP 8.3.0alpha2
+
+- Core:
+  . Fix GH-11388 (Allow "final" modifier when importing a method from a trait).
+    (nielsdos)
+
+08 Jun 2023, PHP 8.3.0alpha1
 
 - CLI:
   . Added pdeathsig to builtin server to terminate workers when the master
@@ -40,9 +46,15 @@ PHP                                                                        NEWS
   . Fix bug #79836 (Segfault in concat_function). (nielsdos)
   . Fix bug #81705 (type confusion/UAF on set_error_handler with concat
     operation). (nielsdos)
+  . Fix GH-11348 (Closure created from magic method does not accept named
+    arguments). (nielsdos)
 
 - Date:
   . Implement More Appropriate Date/Time Exceptions RFC. (Derick)
+
+- DOM:
+  . Fix bug GH-8388 (DOMAttr unescapes character reference). (Tim Starling)
+  . Fix bug GH-11308 (getElementsByTagName() is O(N^2)). (nielsdos)
 
 - Exif:
   . Removed unneeded codepaths in exif_process_TIFF_in_JPEG(). (nielsdos)
@@ -138,6 +150,8 @@ PHP                                                                        NEWS
   . pg_trace new PGSQL_TRACE_SUPPRESS_TIMESTAMPS/PGSQL_TRACE_REGRESS_MODE
     contants support. (David Carlier)
   . pg_set_error_verbosity adding PGSQL_ERRORS_STATE constant. (David Carlier)
+  . pg_convert/pg_insert E_WARNING on type errors had been converted to
+    ValueError/TypeError exceptions. (David Carlier)
 
 - Phar:
   . Fix memory leak in phar_rename_archive(). (stkeke)
